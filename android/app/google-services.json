@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "378144589866",
+    "project_id": "onlyaudio-74ba7",
+    "storage_bucket": "onlyaudio-74ba7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:378144589866:android:480af8b9e25ac523411b53",
+        "android_client_info": {
+          "package_name": "com.onlyaudio.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCVtxu5TZplfo1enTMzc8WbAJSiYGaprjY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
