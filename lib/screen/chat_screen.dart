@@ -23,7 +23,14 @@ typedef _Fn = void Function();
 const audioIn = AudioSource.microphone;
 
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key});
+  final String userId;
+  final String userName;
+
+  const ChatScreen({
+    super.key,
+    required this.userId,
+    required this.userName,
+  });
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -53,9 +60,9 @@ class _ChatScreenState extends State<ChatScreen> {
   // init dash_chat
   String? _uniqueId;
   ChatUser user = ChatUser(
-    id: '1',
-    firstName: 'Charles',
-    lastName: 'Leclerc',
+    id: '',
+    firstName: '',
+    lastName: '',
     profileImage: 'assets/images/icon1.png',
   );
   List<ChatMessage> messages = [];
@@ -138,24 +145,25 @@ class _ChatScreenState extends State<ChatScreen> {
       // Get the audio file's url from Cloud Storage
       final downloadUrl = await audioRef.child(uniqueId).getDownloadURL();
 
-      // AI analysis mp4 (tobe)
-      // const keyWord = [];
-
       const txtMsg = "transcripting.....";
 
       // Init audio meta
       AudioMeta data = AudioMeta(
-        userId: user.id,
+        userId: widget.userId, // Use the authenticated user's ID
         mp4Url: downloadUrl.toString(),
-        // keyWord: keyWord.toList(),
         duration: formattedTime,
         txtMsg: txtMsg,
-        id: _uniqueId!,
+        id: uniqueId,
+        createdAt: DateTime.now(), // Add timestamp
       );
 
       try {
-        // Use FirestoreService to add new audio meta data
-        await FirestoreService.addAudioMeta(data);
+        // Add directly to Firestore
+        await FirebaseFirestore.instance
+            .collection('myaudio')
+            .doc(uniqueId)
+            .set(data.toFirestore());
+            
         print('Audio meta added successfully to db!');
       } catch (e) {
         print('Error adding audio meta to db: $e');
@@ -165,6 +173,12 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void initState() {
+    user = ChatUser(
+      id: widget.userId,
+      firstName: widget.userName,
+      profileImage: 'assets/images/icon1.png',
+    );
+
     if (_mPlayer != null) {
       _mPlayer!.openPlayer().then((value) {
         setState(() {
@@ -181,47 +195,46 @@ class _ChatScreenState extends State<ChatScreen> {
     super.initState();
 
     listenToAudioChanges();
-    //_fetchMessagesFromFirestore();
   }
 
   void listenToAudioChanges() {
-    FirebaseFirestore.instance
+    _streamSubscription?.cancel();
+    _streamSubscription = FirebaseFirestore.instance
         .collection('myaudio')
+        .orderBy('createdAt', descending: true)
         .snapshots()
         .listen((snapshot) {
-      messages.clear();
+      setState(() {
+        messages.clear();
+        _audioList.clear();
 
-      for (var doc in snapshot.docs.reversed) {
-        var audioMeta = AudioMeta.fromFirestore(doc, null);
+        for (var doc in snapshot.docs) {
+          final data = doc.data();
+          final audioMeta = AudioMeta(
+            userId: data['userId'] ?? '',
+            mp4Url: data['mp4Url'] ?? '',
+            duration: data['duration'] ?? '',
+            txtMsg: data['txtMsg'] ?? '',
+            id: doc.id,
+          );
 
-        _audioList.add(audioMeta);
-        var msg = ChatMessage(
-          text:
-              'Playback...... ${audioMeta.duration}\n ${audioMeta.txtMsg}', // Assuming audioMeta has a title
-          createdAt: DateTime.now(),
-          user: user, // Assuming AudioMeta has a user ID
-          playBackUrl: audioMeta.mp4Url,
-        );
+          _audioList.add(audioMeta);
+          
+          final msg = ChatMessage(
+            text: 'Playback...... ${audioMeta.duration}\n ${audioMeta.txtMsg}',
+            createdAt: DateTime.now(),
+            user: ChatUser(
+              id: audioMeta.userId,
+              firstName: audioMeta.userId == widget.userId ? widget.userName : 'Other User',
+            ),
+            playBackUrl: audioMeta.mp4Url,
+          );
 
-        messages.add(msg);
-        messageMap[audioMeta.mp4Url] = msg;
-      }
-      // messages.clear();
-
-      setState(() {});
+          messages.add(msg);
+          messageMap[audioMeta.mp4Url] = msg;
+        }
+      });
     });
-  }
-
-  @override
-  void dispose() {
-    _mPlayer!.closePlayer();
-    _mPlayer = null;
-    _searchController.dispose();
-    _streamSubscription?.cancel();
-
-    _mRecorder!.closeRecorder();
-    _mRecorder = null;
-    super.dispose();
   }
 
   void _generateUniqueId() async {
@@ -357,12 +370,17 @@ class _ChatScreenState extends State<ChatScreen> {
     return _mRecorder!.isStopped ? record : stopRecorder;
   }
 
-  // _Fn? getPlaybackFn(String uniqueId) {
-  //   if (!_mPlayerIsInited || !_mplaybackReady || !_mRecorder!.isStopped) {
-  //     return null;
-  //   }
-  //   return _mPlayer!.isStopped ? () => play(uniqueId) : stopPlayer;
-  // }
+  @override
+  void dispose() {
+    _mPlayer!.closePlayer();
+    _mPlayer = null;
+    _searchController.dispose();
+    _streamSubscription?.cancel();
+
+    _mRecorder!.closeRecorder();
+    _mRecorder = null;
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -380,7 +398,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 onChanged: toggleSearch,
                 autofocus: true,
               )
-            : const Text('Only Audio'),
+            : const Text('Echo Text'),
         actions: [
           IconButton(
             icon: Icon(_isSearching ? Icons.close : Icons.search),

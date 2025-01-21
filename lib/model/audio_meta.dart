@@ -3,46 +3,43 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class AudioMeta {
   final String userId;
   final String mp4Url;
-  // final List<String> keyWord;
-  final String txtMsg;
-  late final String id;
   final String duration;
+  final String txtMsg;
+  final String id;
+  final DateTime? createdAt;
 
-  AudioMeta(
-      {required this.userId,
-      required this.mp4Url,
-      // required this.keyWord,
-      required this.txtMsg,
-      required this.id,
-      required this.duration});
+  AudioMeta({
+    required this.userId,
+    required this.mp4Url,
+    required this.duration,
+    required this.txtMsg,
+    required this.id,
+    this.createdAt,
+  });
+
   Map<String, dynamic> toFirestore() {
     return {
-      'useId': userId,
+      'userId': userId,
       'mp4Url': mp4Url,
-      // 'keyWord': keyWord,
+      'duration': duration,
       'txtMsg': txtMsg,
-      'duration': duration
+      'id': id,
+      'createdAt': createdAt ?? DateTime.now(),
     };
   }
 
-  // audio from firestore
-  factory AudioMeta.fromFirestore(
+  static AudioMeta fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> snapshot,
     SnapshotOptions? options,
   ) {
     final data = snapshot.data()!;
-
-    // List<dynamic> rawKeywords = data['keyWord'] ?? [];
-    // List<String> keywords = rawKeywords.cast<String>();
-
-    AudioMeta myaudio = AudioMeta(
-        userId: data['useId'],
-        mp4Url: data['mp4Url'],
-        // keyWord: keywords,
-        txtMsg: data['txtMsg'],
-        duration: data['duration'],
-        id: snapshot.id);
-
-    return myaudio;
+    return AudioMeta(
+      userId: data['userId'] ?? '',
+      mp4Url: data['mp4Url'] ?? '',
+      duration: data['duration'] ?? '',
+      txtMsg: data['txtMsg'] ?? '',
+      id: snapshot.id,
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
+    );
   }
 }
